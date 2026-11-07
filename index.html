@@ -1,7 +1,85 @@
-<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><title>Financieel nieuws – gegevens</title></head>
-<body style="font-family:sans-serif;max-width:640px;margin:40px auto;line-height:1.5">
-<h1>Financieel nieuws – gegevens</h1>
-<p>Deze pagina hoort bij Theo's Financieel Nieuws Dashboard. Elke 20 minuten wordt <a href="nieuws.json">nieuws.json</a> automatisch bijgewerkt.</p>
-<p id="t">Laatst bijgewerkt: …</p>
-<script>fetch('nieuws.json?'+Date.now()).then(r=>r.json()).then(d=>{document.getElementById('t').textContent='Laatst bijgewerkt: '+new Date(d.bijgewerkt).toLocaleString('nl-NL');}).catch(()=>{document.getElementById('t').textContent='Nog niet bijgewerkt.';});</script>
-</body></html>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nieuwsrobot – status</title>
+<style>
+  body{font-family:"Segoe UI",Arial,sans-serif;font-size:18px;line-height:1.5;margin:0;background:#f4f1ea;color:#2b2a27}
+  header{background:#24435c;color:#fff;padding:16px 28px}
+  header h1{margin:0;font-size:26px}
+  header p{margin:2px 0 0;opacity:.85;font-size:15px}
+  main{max-width:1000px;margin:0 auto;padding:22px 24px 50px}
+  .kaart{background:#fffdf8;border:1px solid #ddd5c4;border-radius:12px;padding:16px 20px;margin-bottom:16px}
+  .groot{font-size:22px;font-weight:600}
+  .ok{color:#2e7d4f}.let{color:#b8650a}.fout{color:#b3261e}
+  table{border-collapse:collapse;width:100%}
+  td,th{padding:7px 10px;border-bottom:1px solid #eee5d4;text-align:left}
+  th{background:#efe9dd}
+  td.r{text-align:right}
+  .knoppen{display:flex;gap:10px;flex-wrap:wrap}
+  a.knop{display:inline-block;padding:9px 16px;border-radius:8px;border:1px solid #c9c0ad;background:#fff;color:#24435c;text-decoration:none;font-size:16px}
+  a.knop:hover{background:#e9f1f7}
+  .raster{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.raster{grid-template-columns:1fr}}
+  .klein{font-size:14px;color:#6b665c}
+  ul{margin:4px 0;padding-left:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🤖 Nieuwsrobot</h1>
+  <p>Haalt elke 20 minuten financieel nieuws en beurskoersen op voor het Financieel Nieuws Dashboard</p>
+</header>
+<main>
+  <div class="kaart" id="status"><span class="groot">Status laden…</span></div>
+
+  <div class="raster">
+    <div class="kaart">
+      <h2 style="margin-top:0;font-size:20px">📰 Nieuwsbronnen</h2>
+      <table id="bronnen"><tr><td>Laden…</td></tr></table>
+    </div>
+    <div class="kaart">
+      <h2 style="margin-top:0;font-size:20px">📈 Koersen</h2>
+      <table id="markten"><tr><td>Laden…</td></tr></table>
+      <p class="klein">Koersen kunnen 15–20 minuten vertraagd zijn.</p>
+    </div>
+  </div>
+
+  <div class="kaart">
+    <h2 style="margin-top:0;font-size:20px">🔎 Zoekwoorden voor Google Nieuws</h2>
+    <ul id="zoek"><li>Laden…</li></ul>
+    <p class="klein">Aanpassen: klik op ‘Zoekwoorden aanpassen’, dan op het potloodje ✏️, wijzig de regels en klik ‘Commit changes’. Of vraag het aan Claude.</p>
+  </div>
+
+  <div class="kaart">
+    <h2 style="margin-top:0;font-size:20px">🛠️ Beheer</h2>
+    <div class="knoppen">
+      <a class="knop" href="https://github.com/TheovanZoest/financieel-nieuws/actions" target="_blank">▶ Robot-rondes bekijken (Actions)</a>
+      <a class="knop" href="https://github.com/TheovanZoest/financieel-nieuws/actions/workflows/nieuws.yml" target="_blank">🔁 Robot nu laten draaien</a>
+      <a class="knop" href="https://github.com/TheovanZoest/financieel-nieuws/blob/main/zoektermen.txt" target="_blank">✏️ Zoekwoorden aanpassen</a>
+      <a class="knop" href="https://github.com/TheovanZoest/financieel-nieuws" target="_blank">📁 Bestanden op GitHub</a>
+      <a class="knop" href="nieuws.json" target="_blank">{ } nieuws.json</a>
+    </div>
+    <p class="klein">‘Robot nu laten draaien’: klik daarna rechts op <b>Run workflow</b> → <b>Run workflow</b>. Na ongeveer een minuut is het nieuws bijgewerkt.</p>
+  </div>
+</main>
+<script>
+const NAMEN={nos:'NOS Economie',nu:'NU.nl Economie',tel:'Telegraaf Financieel',gnews:'Google Nieuws (zoekwoorden)',mw:'MarketWatch',mwm:'MarketWatch Markten',wsj:'Wall Street Journal Markten',nyt:'New York Times Business'};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nl=(n,d=2)=>Number(n).toLocaleString('nl-NL',{minimumFractionDigits:d,maximumFractionDigits:d});
+fetch('nieuws.json?'+Date.now()).then(r=>r.json()).then(d=>{
+  const t=new Date(d.bijgewerkt), min=Math.round((Date.now()-t)/60000);
+  const kl=min<=45?'ok':min<=180?'let':'fout';
+  const tekst=min<=45?'✅ De robot werkt':min<=180?'⚠️ De robot is al even niet geweest':'⛔ De robot draait niet meer';
+  document.getElementById('status').innerHTML=`<span class="groot ${kl}">${tekst}</span><br>Laatst bijgewerkt: <b>${t.toLocaleString('nl-NL',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</b> (${min<1?'zojuist':min+' minuten geleden'})`+
+    (kl==='fout'?`<p>Kijk bij ‘Robot-rondes bekijken’. Staat daar een melding dat de robot gepauzeerd is, klik dan op <b>Enable workflow</b>.</p>`:'');
+  document.getElementById('bronnen').innerHTML='<tr><th>Bron</th><th class="r">Berichten</th><th></th></tr>'+Object.entries(d.bronnen).map(([k,b])=>
+    `<tr><td>${esc(NAMEN[k]||k)}</td><td class="r">${b.items.length}</td><td>${b.items.length?'<span class="ok">✓</span>':'<span class="fout" title="'+esc(b.fout||'')+'">✗</span>'}</td></tr>`).join('');
+  document.getElementById('markten').innerHTML='<tr><th>Koers</th><th class="r">Stand</th><th class="r">Vandaag</th></tr>'+Object.entries(d.markten||{}).map(([k,m])=>
+    `<tr><td>${esc(k)}</td><td class="r">${m?nl(m.prijs,k==='EUR/USD'?4:2):'—'}</td><td class="r ${m&&m.ch!=null?(m.ch>=0?'ok':'fout'):''}">${m&&m.ch!=null?(m.ch>=0?'+':'')+nl(m.ch)+'%':'n.b.'}</td></tr>`).join('');
+  document.getElementById('zoek').innerHTML=(d.zoektermen||[]).map(z=>`<li>${esc(z)}</li>`).join('')||'<li>—</li>';
+}).catch(()=>{document.getElementById('status').innerHTML='<span class="groot fout">Nog geen gegevens gevonden.</span><br>De robot heeft nog niet gedraaid, of GitHub Pages staat uit.';});
+</script>
+</body>
+</html>
