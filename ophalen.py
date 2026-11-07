@@ -80,7 +80,7 @@ def vertaal_lijst(teksten):
         data = json.loads(haal(url, timeout=25))
         uit = "".join(seg[0] for seg in data[0] if seg and seg[0]).split("\n")
         if len(uit) == len(schoon_t):
-            return [u.strip() for u in uit]
+            return [u.replace("\u200b", "").strip() for u in uit]
     except Exception as e:
         print("Vertalen in één keer mislukt:", str(e)[:80])
     # terugval: één voor één
@@ -88,7 +88,7 @@ def vertaal_lijst(teksten):
     for t in schoon_t:
         try:
             data = json.loads(haal("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=nl&dt=t&q=" + urllib.parse.quote(t), timeout=15))
-            resultaat.append("".join(seg[0] for seg in data[0] if seg and seg[0]).strip())
+            resultaat.append("".join(seg[0] for seg in data[0] if seg and seg[0]).replace("\u200b", "").strip())
         except Exception:
             resultaat.append("")
         time.sleep(0.2)
@@ -100,7 +100,7 @@ def vertaal_bron(items, oud):
     nieuw = [it for it in items if it["link"] not in oud]
     for it in items:
         if it["link"] in oud:
-            it["titel_nl"], it["desc_nl"] = oud[it["link"]]
+            it["titel_nl"], it["desc_nl"] = (x.replace("\u200b", "") for x in oud[it["link"]])
     for start in range(0, len(nieuw), 15):
         stuk = nieuw[start:start + 15]
         titels = vertaal_lijst([it["titel"] for it in stuk])
