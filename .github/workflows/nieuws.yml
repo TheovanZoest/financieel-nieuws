@@ -6,6 +6,9 @@ on:
   schedule:
     - cron: "7,27,47 * * * *"   # elke 20 minuten (GitHub kan soms wat later starten)
   workflow_dispatch:            # handmatig starten via het tabblad Actions
+  push:                         # ook direct na het aanpassen van de zoekwoorden of het script
+    branches: [main]
+    paths: ["ophalen.py", "zoektermen.txt", ".github/workflows/nieuws.yml"]
 
 permissions:
   contents: write
