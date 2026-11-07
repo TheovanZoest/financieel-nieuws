@@ -1,0 +1,5 @@
+# Zoekwoorden voor Google Nieuws (één per regel).
+# Regels die met # beginnen worden overgeslagen.
+AEX beurs
+ASML
+rente ECB

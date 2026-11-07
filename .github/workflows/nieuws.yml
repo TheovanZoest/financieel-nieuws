@@ -1,0 +1,38 @@
+# Haalt elke 20 minuten het financiële nieuws en de koersen op
+# en zet ze in nieuws.json (te lezen via GitHub Pages).
+name: Nieuws ophalen
+
+on:
+  schedule:
+    - cron: "7,27,47 * * * *"   # elke 20 minuten (GitHub kan soms wat later starten)
+  workflow_dispatch:            # handmatig starten via het tabblad Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nieuws
+  cancel-in-progress: false
+
+jobs:
+  ophalen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Nieuws en koersen ophalen
+        run: python ophalen.py
+      - name: Opslaan als er iets veranderd is
+        run: |
+          git config user.name "nieuws-robot"
+          git config user.email "nieuws-robot@users.noreply.github.com"
+          git add nieuws.json
+          if git diff --cached --quiet; then
+            echo "Geen wijzigingen"
+          else
+            git commit -m "Nieuws bijgewerkt $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          fi

@@ -1,0 +1,7 @@
+<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><title>Financieel nieuws – gegevens</title></head>
+<body style="font-family:sans-serif;max-width:640px;margin:40px auto;line-height:1.5">
+<h1>Financieel nieuws – gegevens</h1>
+<p>Deze pagina hoort bij Theo's Financieel Nieuws Dashboard. Elke 20 minuten wordt <a href="nieuws.json">nieuws.json</a> automatisch bijgewerkt.</p>
+<p id="t">Laatst bijgewerkt: …</p>
+<script>fetch('nieuws.json?'+Date.now()).then(r=>r.json()).then(d=>{document.getElementById('t').textContent='Laatst bijgewerkt: '+new Date(d.bijgewerkt).toLocaleString('nl-NL');}).catch(()=>{document.getElementById('t').textContent='Nog niet bijgewerkt.';});</script>
+</body></html>
