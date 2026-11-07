@@ -16,6 +16,7 @@ BRONNEN = {
     "wsj": "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
     "nyt": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
 }
+ENGELS = ["mw", "mwm", "wsj", "nyt"]
 KOERSEN = {"AEX": "^AEX", "DAX": "^GDAXI", "S&P 500": "^GSPC", "Nasdaq": "^IXIC",
            "Goud ($/oz)": "GC=F", "Brent-olie ($)": "BZ=F", "EUR/USD": "EURUSD=X"}
 
@@ -68,6 +69,63 @@ def lees_feed(xml_bytes, google=False, maximum=30):
     return uit
 
 
+def vertaal_lijst(teksten):
+    """Vertaalt een lijst Engelse teksten naar het Nederlands (gratis Google-vertaaldienst).
+    Geeft een lijst van dezelfde lengte terug; bij een fout lege teksten."""
+    if not teksten:
+        return []
+    schoon_t = [t.replace("\n", " ").strip() or "-" for t in teksten]
+    url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=nl&dt=t&q=" + urllib.parse.quote("\n".join(schoon_t))
+    try:
+        data = json.loads(haal(url, timeout=25))
+        uit = "".join(seg[0] for seg in data[0] if seg and seg[0]).split("\n")
+        if len(uit) == len(schoon_t):
+            return [u.strip() for u in uit]
+    except Exception as e:
+        print("Vertalen in één keer mislukt:", str(e)[:80])
+    # terugval: één voor één
+    resultaat = []
+    for t in schoon_t:
+        try:
+            data = json.loads(haal("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=nl&dt=t&q=" + urllib.parse.quote(t), timeout=15))
+            resultaat.append("".join(seg[0] for seg in data[0] if seg and seg[0]).strip())
+        except Exception:
+            resultaat.append("")
+        time.sleep(0.2)
+    return resultaat
+
+
+def vertaal_bron(items, oud):
+    """Voegt titel_nl en desc_nl toe; hergebruikt eerdere vertalingen (op link)."""
+    nieuw = [it for it in items if it["link"] not in oud]
+    for it in items:
+        if it["link"] in oud:
+            it["titel_nl"], it["desc_nl"] = oud[it["link"]]
+    for start in range(0, len(nieuw), 15):
+        stuk = nieuw[start:start + 15]
+        titels = vertaal_lijst([it["titel"] for it in stuk])
+        descs = vertaal_lijst([it["desc"] or "-" for it in stuk])
+        for it, t, d in zip(stuk, titels, descs):
+            if t:
+                it["titel_nl"] = t
+                it["desc_nl"] = "" if d in ("-", "") or not it["desc"] else d
+        time.sleep(0.5)
+
+
+def vorige_vertalingen():
+    try:
+        with open("nieuws.json", encoding="utf-8") as f:
+            oud = json.load(f)
+        kaart = {}
+        for bid in ENGELS:
+            for it in oud.get("bronnen", {}).get(bid, {}).get("items", []):
+                if it.get("titel_nl"):
+                    kaart[it["link"]] = (it["titel_nl"], it.get("desc_nl", ""))
+        return kaart
+    except Exception:
+        return {}
+
+
 def zoektermen():
     try:
         with open("zoektermen.txt", encoding="utf-8") as f:
@@ -87,6 +145,7 @@ def koers(sym):
 def main():
     nu = datetime.now(timezone.utc).isoformat()
     data = {"bijgewerkt": nu, "bronnen": {}, "markten": {}, "zoektermen": zoektermen()}
+    oud_vertaald = vorige_vertalingen()
     for bid, url in BRONNEN.items():
         try:
             data["bronnen"][bid] = {"items": lees_feed(haal(url)), "ok": True}
@@ -103,6 +162,12 @@ def main():
             pass
         time.sleep(0.5)
     data["bronnen"]["gnews"] = {"items": google, "ok": bool(google)}
+    for bid in ENGELS:
+        if data["bronnen"].get(bid, {}).get("items"):
+            try:
+                vertaal_bron(data["bronnen"][bid]["items"], oud_vertaald)
+            except Exception as e:
+                print("Vertalen", bid, "mislukt:", str(e)[:80])
     for naam, sym in KOERSEN.items():
         try:
             data["markten"][naam] = koers(sym)
