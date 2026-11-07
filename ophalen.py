@@ -18,7 +18,7 @@ BRONNEN = {
 }
 ENGELS = ["mw", "mwm", "wsj", "nyt"]
 KOERSEN = {"AEX": "^AEX", "DAX": "^GDAXI", "S&P 500": "^GSPC", "Nasdaq": "^IXIC",
-           "Goud ($/oz)": "GC=F", "Brent-olie ($)": "BZ=F", "EUR/USD": "EURUSD=X"}
+           "Goud ($/oz)": "GC=F", "Zilver ($/oz)": "SI=F", "Brent-olie ($)": "BZ=F", "EUR/USD": "EURUSD=X"}
 
 
 def haal(url, timeout=20):
