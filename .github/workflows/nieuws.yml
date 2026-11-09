@@ -1,12 +1,17 @@
-# Haalt elke 20 minuten het financiële nieuws en de koersen op
+# Haalt het financiële nieuws en de koersen op
 # en zet ze in nieuws.json (te lezen via GitHub Pages).
+#
+# GitHub start geplande robots vaak veel later dan gevraagd (soms uren).
+# Daarom blijft elke ronde ongeveer 5,5 uur actief en haalt hij zelf
+# elke 15 minuten het nieuws op. Elk uur wordt een nieuwe ronde ingepland;
+# die wacht netjes tot de vorige klaar is. Zo is er (bijna) altijd vers nieuws.
 name: Nieuws ophalen
 
 on:
   schedule:
-    - cron: "7,27,47 * * * *"   # elke 20 minuten (GitHub kan soms wat later starten)
+    - cron: "7 * * * *"         # elk uur een nieuwe ronde inplannen
   workflow_dispatch:            # handmatig starten via het tabblad Actions
-  push:                         # ook direct na het aanpassen van de zoekwoorden of het script
+  push:                         # ook na het aanpassen van de zoekwoorden of het script
     branches: [main]
     paths: ["ophalen.py", "zoektermen.txt", ".github/workflows/nieuws.yml"]
 
@@ -20,22 +25,27 @@ concurrency:
 jobs:
   ophalen:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Nieuws en koersen ophalen
-        run: python ophalen.py
-      - name: Opslaan als er iets veranderd is
+      - name: Elke 15 minuten nieuws en koersen ophalen (ongeveer 5,5 uur lang)
         run: |
           git config user.name "nieuws-robot"
           git config user.email "nieuws-robot@users.noreply.github.com"
-          git add nieuws.json
-          if git diff --cached --quiet; then
-            echo "Geen wijzigingen"
-          else
-            git commit -m "Nieuws bijgewerkt $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git push
-          fi
+          einde=$(( $(date +%s) + 5*3600 + 30*60 ))
+          while true; do
+            git pull --rebase -q || echo "Bijwerken van GitHub mislukt"
+            python ophalen.py || echo "Ophalen mislukt, volgende keer opnieuw"
+            git add nieuws.json
+            if git diff --cached --quiet; then
+              echo "Geen wijzigingen"
+            else
+              git commit -q -m "Nieuws bijgewerkt $(date -u +'%Y-%m-%d %H:%M') UTC"
+              git push -q || (git pull --rebase -q && git push -q) || echo "Opslaan mislukt"
+            fi
+            if [ $(( $(date +%s) + 15*60 )) -gt $einde ]; then break; fi
+            sleep 900
+          done
